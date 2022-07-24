@@ -100,6 +100,7 @@ export type Post = {
 
 export type Query = {
   __typename?: 'Query';
+  accessToken: Video;
   feed: Array<Post>;
   me: User;
   messagesByPostId: Array<Message>;
@@ -110,6 +111,12 @@ export type Query = {
   unmatchedPosts: Array<Maybe<Post>>;
   user?: Maybe<User>;
   users: Array<User>;
+};
+
+
+export type QueryAccessTokenArgs = {
+  identity?: InputMaybe<Scalars['String']>;
+  room?: InputMaybe<Scalars['String']>;
 };
 
 
@@ -153,6 +160,11 @@ export type User = {
   matchingPoint: Scalars['Int'];
   name: Scalars['String'];
   navigatorPost: Array<Post>;
+};
+
+export type Video = {
+  __typename?: 'Video';
+  accessToken: Scalars['String'];
 };
 
 export type SignInMutationVariables = Exact<{
@@ -216,6 +228,14 @@ export type FetchSkillsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type FetchSkillsQuery = { __typename?: 'Query', skills: Array<{ __typename?: 'Skill', id: number, name: string }> };
+
+export type GetVideoAccessTokenQueryVariables = Exact<{
+  identity: Scalars['String'];
+  room: Scalars['String'];
+}>;
+
+
+export type GetVideoAccessTokenQuery = { __typename?: 'Query', accessToken: { __typename?: 'Video', accessToken: string } };
 
 export type FetchUnmatchedPostQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -569,6 +589,42 @@ export function useFetchSkillsLazyQuery(baseOptions?: Apollo.LazyQueryHookOption
 export type FetchSkillsQueryHookResult = ReturnType<typeof useFetchSkillsQuery>;
 export type FetchSkillsLazyQueryHookResult = ReturnType<typeof useFetchSkillsLazyQuery>;
 export type FetchSkillsQueryResult = Apollo.QueryResult<FetchSkillsQuery, FetchSkillsQueryVariables>;
+export const GetVideoAccessTokenDocument = gql`
+    query getVideoAccessToken($identity: String!, $room: String!) {
+  accessToken(identity: $identity, room: $room) {
+    accessToken
+  }
+}
+    `;
+
+/**
+ * __useGetVideoAccessTokenQuery__
+ *
+ * To run a query within a React component, call `useGetVideoAccessTokenQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetVideoAccessTokenQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetVideoAccessTokenQuery({
+ *   variables: {
+ *      identity: // value for 'identity'
+ *      room: // value for 'room'
+ *   },
+ * });
+ */
+export function useGetVideoAccessTokenQuery(baseOptions: Apollo.QueryHookOptions<GetVideoAccessTokenQuery, GetVideoAccessTokenQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetVideoAccessTokenQuery, GetVideoAccessTokenQueryVariables>(GetVideoAccessTokenDocument, options);
+      }
+export function useGetVideoAccessTokenLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetVideoAccessTokenQuery, GetVideoAccessTokenQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetVideoAccessTokenQuery, GetVideoAccessTokenQueryVariables>(GetVideoAccessTokenDocument, options);
+        }
+export type GetVideoAccessTokenQueryHookResult = ReturnType<typeof useGetVideoAccessTokenQuery>;
+export type GetVideoAccessTokenLazyQueryHookResult = ReturnType<typeof useGetVideoAccessTokenLazyQuery>;
+export type GetVideoAccessTokenQueryResult = Apollo.QueryResult<GetVideoAccessTokenQuery, GetVideoAccessTokenQueryVariables>;
 export const FetchUnmatchedPostDocument = gql`
     query fetchUnmatchedPost {
   unmatchedPosts {

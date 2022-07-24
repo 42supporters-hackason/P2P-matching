@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
@@ -11,10 +11,17 @@ import {
 } from "@mui/material";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { useSearchParams } from "react-router-dom";
+import { connect, LocalVideoTrack, Room } from "twilio-video";
 import { ChatMessage } from "../../components/ChatMessage";
+import { EnterButton } from "../../components/EnterButton";
 import { IconButton } from "../../components/IconButton";
 import { VideoButtons } from "../../components/VideoButtons";
-import { useSendMessageMutation } from "../../gen/graphql-client";
+import { VideoRoom } from "../../components/VideoRoom";
+import { useProfile } from "../../context/auth";
+import {
+  useGetVideoAccessTokenQuery,
+  useSendMessageMutation,
+} from "../../gen/graphql-client";
 import { useBoolean } from "../../hooks/useBoolean";
 import { useClientRoute } from "../../hooks/useClientRoute";
 import { unreachable } from "../../utils";
@@ -28,8 +35,11 @@ export const ChatPage = () => {
   /**
    * misc.
    */
-  const [volumeOn, setVolumeOn] = useBoolean(false);
-  const [videoOn, setVideoOn] = useBoolean(false);
+  const [volumeOn, setVolumeOn] = useBoolean(true);
+  const [videoOn, setVideoOn] = useBoolean(true);
+  const [shareScreenTrack, setShareScreenTrack] =
+    useState<LocalVideoTrack | null>(null);
+  const [roomData, setRoomData] = useState<Room | null>(null);
   const { goToHome } = useClientRoute();
   const ref = useRef<HTMLDivElement>(null);
   const [searchParams] = useSearchParams();
@@ -37,6 +47,7 @@ export const ChatPage = () => {
   const { messages, opponentGithubLogin, opponentName } = useChatHooks(
     roomId ?? unreachable()
   );
+  const videoRef = useRef<HTMLDivElement | null>(null);
 
   const [sendMessage] = useSendMessageMutation();
 
@@ -46,10 +57,46 @@ export const ChatPage = () => {
   const { register, handleSubmit, setValue } = useForm<ChatSchema>({
     resolver: zodResolver(chatSchema),
   });
+  const { profile } = useProfile();
+  const { data: accessTokenReturnValue } = useGetVideoAccessTokenQuery({
+    variables: {
+      identity: profile.githubLogin ?? "",
+      room: roomId ?? unreachable(),
+    },
+  });
 
   /**
    * event-handler
    */
+  const handleEnterRoom = useCallback(async () => {
+    if (accessTokenReturnValue?.accessToken.accessToken) {
+      const room = await connect(
+        accessTokenReturnValue.accessToken.accessToken,
+        {
+          name: roomId,
+          audio: true,
+          video: { width: 460 },
+        }
+      );
+      setRoomData(room);
+    }
+  }, [accessTokenReturnValue, roomId]);
+
+  const handleExitRoom = useCallback(async () => {
+    if (accessTokenReturnValue?.accessToken.accessToken) {
+      const room = await connect(
+        accessTokenReturnValue.accessToken.accessToken,
+        {
+          name: roomId,
+          audio: false,
+          video: false,
+        }
+      );
+      room.disconnect();
+      setRoomData(null);
+    }
+  }, [accessTokenReturnValue, roomId]);
+
   const handleMessageSubmit: SubmitHandler<ChatSchema> = useCallback(
     async ({ message }) => {
       if (roomId !== null) {
@@ -67,9 +114,52 @@ export const ChatPage = () => {
     [sendMessage, roomId, setValue]
   );
 
+  const shareScreenHandler = useCallback(() => {
+    if (shareScreenTrack === null) {
+      navigator.mediaDevices.getDisplayMedia().then((stream) => {
+        const screenTrack = new LocalVideoTrack(stream.getTracks()[0]);
+        roomData?.localParticipant.publishTrack(screenTrack);
+        screenTrack.mediaStreamTrack.onended = () => {
+          shareScreenHandler();
+        };
+        setShareScreenTrack(screenTrack);
+        const videoChild = screenTrack.attach();
+        videoChild.width = 460;
+        videoRef.current?.appendChild(videoChild);
+      });
+    } else {
+      roomData?.localParticipant.unpublishTrack(shareScreenTrack);
+      shareScreenTrack.stop();
+      videoRef.current?.remove();
+      setShareScreenTrack(null);
+    }
+  }, [shareScreenTrack, setShareScreenTrack, roomData?.localParticipant]);
+
+  const handleToggleVideo = useCallback(() => {
+    roomData?.localParticipant.videoTracks.forEach((videoTrack) =>
+      videoOn ? videoTrack.track.disable() : videoTrack.track.enable()
+    );
+    setVideoOn.toggle();
+  }, [roomData, videoOn, setVideoOn]);
+
+  const handleVolumeToggle = useCallback(() => {
+    roomData?.localParticipant.audioTracks.forEach((audioTrack) =>
+      volumeOn ? audioTrack.track.disable() : audioTrack.track.enable()
+    );
+    setVolumeOn.toggle();
+  }, [roomData, volumeOn, setVolumeOn]);
+
   useEffect(() => {
     ref.current?.scrollIntoView();
   }, [messages]);
+
+  useEffect(() => {
+    if (shareScreenTrack !== null) {
+      shareScreenTrack.mediaStreamTrack.onended = () => {
+        shareScreenHandler();
+      };
+    }
+  }, [shareScreenTrack, shareScreenHandler]);
 
   return (
     <Box sx={{ display: "flex", height: "calc(100vh - 68.5px)" }}>
@@ -83,17 +173,24 @@ export const ChatPage = () => {
           }}
         >
           <Box sx={{ display: "flex", height: "85%", width: "100%", gap: 3 }}>
-            <Box sx={{ width: "50%", border: 1 }}>自分</Box>
-            <Box sx={{ width: "50%", border: 1 }}>相手</Box>
+            {roomData === null ? (
+              <EnterButton onClick={handleEnterRoom} />
+            ) : (
+              <VideoRoom room={roomData} ref={videoRef} />
+            )}
           </Box>
-          <Box sx={{ m: "auto", display: "flex", gap: 2 }}>
-            <VideoButtons
-              volumeOn={volumeOn}
-              videoOn={videoOn}
-              onClickVideo={setVideoOn.toggle}
-              onClickVolume={setVolumeOn.toggle}
-            />
-          </Box>
+          {roomData !== null && (
+            <Box sx={{ m: "auto", display: "flex", gap: 2 }}>
+              <VideoButtons
+                volumeOn={volumeOn}
+                videoOn={videoOn}
+                onClickVideo={handleToggleVideo}
+                onClickVolume={handleVolumeToggle}
+                onClickShareScreen={shareScreenHandler}
+                onExit={handleExitRoom}
+              />
+            </Box>
+          )}
         </Box>
       </Box>
       <Box

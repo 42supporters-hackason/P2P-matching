@@ -9,6 +9,14 @@ export const FETCH_SKILLS = gql`
   }
 `;
 
+export const GET_VIDEO_ACCESS_TOKEN = gql`
+  query getVideoAccessToken($identity: String!, $room: String!) {
+    accessToken(identity: $identity, room: $room) {
+      accessToken
+    }
+  }
+`;
+
 export const FETCH_UNMATCHED_POST = gql`
   query fetchUnmatchedPost {
     unmatchedPosts {

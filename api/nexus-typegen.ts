@@ -74,6 +74,9 @@ export interface NexusGenObjects {
     matchingPoint: number; // Int!
     name: string; // String!
   }
+  Video: { // root type
+    accessToken: string; // String!
+  }
 }
 
 export interface NexusGenInterfaces {
@@ -118,6 +121,7 @@ export interface NexusGenFieldTypes {
     title: string; // String!
   }
   Query: { // field return type
+    accessToken: NexusGenRootTypes['Video']; // Video!
     feed: NexusGenRootTypes['Post'][]; // [Post!]!
     me: NexusGenRootTypes['User']; // User!
     messagesByPostId: NexusGenRootTypes['Message'][]; // [Message!]!
@@ -145,6 +149,9 @@ export interface NexusGenFieldTypes {
     matchingPoint: number; // Int!
     name: string; // String!
     navigatorPost: NexusGenRootTypes['Post'][]; // [Post!]!
+  }
+  Video: { // field return type
+    accessToken: string; // String!
   }
 }
 
@@ -180,6 +187,7 @@ export interface NexusGenFieldTypeNames {
     title: 'String'
   }
   Query: { // field return type name
+    accessToken: 'Video'
     feed: 'Post'
     me: 'User'
     messagesByPostId: 'Message'
@@ -207,6 +215,9 @@ export interface NexusGenFieldTypeNames {
     matchingPoint: 'Int'
     name: 'String'
     navigatorPost: 'Post'
+  }
+  Video: { // field return type name
+    accessToken: 'String'
   }
 }
 
@@ -243,6 +254,10 @@ export interface NexusGenArgTypes {
     }
   }
   Query: {
+    accessToken: { // args
+      identity?: string | null; // String
+      room?: string | null; // String
+    }
     messagesByPostId: { // args
       postId: string; // String!
     }
